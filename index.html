@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<title>Avokado Bar · Müzik</title>
+<style>
+  :root{
+    --bg:#1a2417; --panel:#243420; --panel2:#2d4027;
+    --green:#8fbc5a; --green-dk:#5a8a3a; --cream:#f2efe6; --muted:#9db08d;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:var(--cream);
+    min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px;
+  }
+  .app{width:100%; max-width:540px;}
+  .card{background:var(--panel); border-radius:20px; padding:28px; box-shadow:0 10px 40px rgba(0,0,0,.4);}
+  h1{font-size:22px; letter-spacing:.5px; display:flex; align-items:center; gap:10px;}
+  h1 .avo{font-size:28px;}
+  .clock{font-variant-numeric:tabular-nums; font-size:44px; font-weight:600; margin:14px 0 2px;}
+  .slot-name{color:var(--green); font-size:17px; font-weight:600; min-height:24px;}
+  .slot-sub{color:var(--muted); font-size:13px; margin-top:2px; min-height:18px;}
+  .moods{display:flex; flex-wrap:wrap; gap:6px; margin-top:14px;}
+  .mood{
+    border:1px solid var(--panel2); background:transparent; color:var(--muted);
+    border-radius:999px; padding:6px 12px; font-size:12.5px; cursor:pointer; transition:.15s;
+  }
+  .mood:hover{color:var(--cream); border-color:var(--green-dk);}
+  .mood.active{background:var(--green-dk); color:var(--cream); border-color:var(--green-dk);}
+  .now{
+    margin-top:16px; background:var(--panel2); border-radius:14px; padding:16px;
+    min-height:76px;
+  }
+  .now-top{display:flex; align-items:center; gap:14px;}
+  .eq{display:flex; gap:3px; align-items:flex-end; height:26px; width:26px; flex:none;}
+  .eq span{width:5px; background:var(--green); border-radius:2px; height:6px;}
+  .playing .eq span{animation:eq .9s ease-in-out infinite;}
+  .playing .eq span:nth-child(2){animation-delay:.2s;}
+  .playing .eq span:nth-child(3){animation-delay:.4s;}
+  @keyframes eq{0%,100%{height:6px}50%{height:24px}}
+  .track-title{font-size:15px; font-weight:600;}
+  .track-sub{font-size:12px; color:var(--muted); margin-top:3px;}
+  .seek-row{display:flex; align-items:center; gap:10px; margin-top:12px; font-size:11.5px; color:var(--muted); font-variant-numeric:tabular-nums;}
+  .seek-row input[type=range]{flex:1; accent-color:var(--green); height:4px;}
+  .controls{display:flex; gap:10px; margin-top:16px;}
+  button{
+    flex:1; border:0; border-radius:12px; padding:14px; font-size:15px; font-weight:600;
+    cursor:pointer; background:var(--panel2); color:var(--cream); transition:.15s;
+  }
+  button:hover{filter:brightness(1.15);}
+  button.primary{background:var(--green-dk);}
+  button.primary:hover{background:var(--green);color:#152010;}
+  button.small{flex:none; padding:14px 16px; font-size:14px;}
+  .license{
+    display:none; margin-top:14px; background:var(--panel2); border-radius:12px; padding:14px;
+    font-size:12.5px; line-height:1.8; color:var(--muted);
+  }
+  .license.open{display:block;}
+  .license b{color:var(--cream);}
+  .license a{color:var(--green);}
+  .vol{display:flex; align-items:center; gap:12px; margin-top:16px; font-size:13px; color:var(--muted);}
+  input[type=range]{flex:1; accent-color:var(--green);}
+  .schedule{margin-top:18px; font-size:12.5px; color:var(--muted); line-height:1.9;}
+  .schedule .row{display:flex; justify-content:space-between; padding:0 4px; border-radius:6px;}
+  .schedule .row.active{background:var(--panel2); color:var(--cream);}
+  .schedule .row.active .tag{color:var(--green);}
+  .setup{text-align:center; padding:10px 0;}
+  .setup p{color:var(--muted); font-size:14px; margin:14px 0 20px; line-height:1.6;}
+  .hint{margin-top:14px; font-size:11.5px; color:var(--muted); text-align:center;}
+  .err{color:#e0a05a; font-size:13px; margin-top:10px; text-align:center; min-height:18px;}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="card">
+    <h1><span class="avo">🥑</span> Avokado Bar · Müzik</h1>
+
+    <!-- SETUP -->
+    <div id="setup" class="setup">
+      <p>Müzik klasörünü seç (içinde <b>1-kahvalti … 6-hifi</b> klasörleri ya da bu ön eklerle adlandırılmış mp3'ler olmalı), sonra tek tuşla başlat. Gün boyu kendi kendine çalışır.</p>
+      <button class="primary" id="resumeBtn" hidden>🔁 Son Klasörü Yükle</button>
+      <button class="primary" id="pickBtn">📁 Müzik Klasörünü Seç (bilgisayar)</button>
+      <button id="pickZipBtn" style="margin-top:8px">📦 ZIP Seç (tablet/telefon)</button>
+      <button id="pickFilesBtn" style="margin-top:8px">📄 Tek Tek Dosya Seç</button>
+      <input type="file" id="picker" webkitdirectory multiple hidden>
+      <input type="file" id="pickerZip" accept=".zip,application/zip" hidden>
+      <input type="file" id="pickerFiles" accept="audio/*" multiple hidden>
+      <div id="zipProgress" style="margin-top:12px; font-size:13px; color:var(--muted);"></div>
+      <div class="err" id="setupErr"></div>
+    </div>
+
+    <!-- PLAYER -->
+    <div id="player" hidden>
+      <div class="clock" id="clock">--:--</div>
+      <div class="slot-name" id="slotName"></div>
+      <div class="slot-sub" id="slotSub"></div>
+
+      <div class="moods" id="moods"></div>
+
+      <div class="now" id="nowBox">
+        <div class="now-top">
+          <div class="eq"><span></span><span></span><span></span></div>
+          <div>
+            <div class="track-title" id="trackTitle">Hazır</div>
+            <div class="track-sub" id="trackSub">Başlat'a bas</div>
+          </div>
+        </div>
+        <div class="seek-row">
+          <span id="tCur">0:00</span>
+          <input type="range" id="seek" min="0" max="1000" value="0">
+          <span id="tDur">0:00</span>
+        </div>
+      </div>
+
+      <div class="controls">
+        <button class="primary" id="startBtn">▶ Başlat</button>
+        <button id="skipBtn">⏭ Sonraki</button>
+        <button class="small" id="licBtn" title="Çalan parçanın lisansı">📄 Lisans</button>
+      </div>
+
+      <div class="license" id="licPanel">Lisans bilgisi için bir parça çalıyor olmalı.</div>
+
+      <div class="vol">🔊 <input type="range" id="vol" min="0" max="100" value="80"> <span id="volLabel">80%</span></div>
+
+      <div class="schedule" id="schedule"></div>
+      <div class="hint" id="hintText">Sekmeyi kapatma; bilgisayarın uyku moduna geçmesini kapat. Otomatik modda 23:00'te durur.</div>
+    </div>
+  </div>
+</div>
+
+<audio id="a0"></audio>
+<audio id="a1"></audio>
+
+<script>
+// ---------- ZAMAN PLANI ----------
+// [başlangıç dk, bitiş dk, klasör ön eki, ad, açıklama, hedef ses (0-1)]
+const SLOTS = [
+  [8*60,      11*60,     '1-kahvalti', 'Kahvaltı',   'Akustik & soft — 60-90 BPM',        0.70],
+  [11*60,     14*60+30,  '2-ogle',     'Öğle',       'Enerjik & upbeat — 100-120 BPM',    0.85],
+  [14*60+30,  17*60,     '3-ikindi',   'İkindi',     'Bossa & chill — 70-95 BPM',         0.70],
+  [17*60,     20*60,     '4-aksam',    'Akşam',      'Nu-jazz & groove — 90-110 BPM',     0.75],
+  [20*60,     21*60,     '5-kapanis',  'Geçiş',      'Lounge & sakin — 75-95 BPM',        0.60],
+  [21*60,     23*60,     '6-hifi',     'HiFi',       'Kahve & tatlı — funk, groove, 100-120 BPM', 0.70],
+];
+const FADE_SEC = 4;
+
+// ---------- DURUM ----------
+let library = {};          // slotPrefix -> [{name, artist, pxid, vokal, file, url}]
+let started = false;
+let mood = 'auto';         // 'auto' veya slot index (0-5)
+let currentSlotIdx = -1;
+let currentTrack = null;
+let queue = [];
+let queuePos = 0;
+let active = 0;
+let masterVol = 0.8;
+let seeking = false;
+const audios = [document.getElementById('a0'), document.getElementById('a1')];
+
+// ---------- DOSYA ADI AYRIŞTIRMA ----------
+function parseTrack(filename){
+  let base = filename.replace(/\.(mp3|m4a|ogg|wav)$/i,'');
+  const pxm = base.match(/\[px(\d+)\]/);
+  const vokal = /\[vokal\]/i.test(base);
+  const brackets = [...base.matchAll(/\[([^\]]+)\]/g)].map(m=>m[1]).filter(b=>!/^px\d+$/.test(b) && b.toLowerCase()!=='vokal');
+  const artist = brackets.length ? brackets[brackets.length-1] : null;
+  let title = base.replace(/^\d-\w+ - /,'').replace(/\[[^\]]*\]/g,'').replace(/\s+/g,' ').trim();
+  return { title, artist, pxid: pxm?pxm[1]:null, vokal };
+}
+
+// ---------- KLASÖR SEÇİMİ ----------
+const picker = document.getElementById('picker');
+const pickerFiles = document.getElementById('pickerFiles');
+const hasFSA = 'showDirectoryPicker' in window;
+
+// --- klasör iznini hatırlama (IndexedDB) ---
+function idbOpen(){
+  return new Promise((res,rej)=>{
+    const r = indexedDB.open('avokado-player',1);
+    r.onupgradeneeded = ()=> r.result.createObjectStore('kv');
+    r.onsuccess = ()=> res(r.result);
+    r.onerror = ()=> rej(r.error);
+  });
+}
+async function idbSet(key,val){
+  const db = await idbOpen();
+  return new Promise((res,rej)=>{
+    const tx = db.transaction('kv','readwrite');
+    tx.objectStore('kv').put(val,key);
+    tx.oncomplete = res; tx.onerror = ()=>rej(tx.error);
+  });
+}
+async function idbGet(key){
+  const db = await idbOpen();
+  return new Promise((res,rej)=>{
+    const rq = db.transaction('kv').objectStore('kv').get(key);
+    rq.onsuccess = ()=>res(rq.result); rq.onerror = ()=>rej(rq.error);
+  });
+}
+
+async function scanHandle(dirHandle){
+  const items = [];
+  async function walk(dir){
+    for await (const e of dir.values()){
+      if (e.kind === 'file' && /\.(mp3|m4a|ogg|wav)$/i.test(e.name)){
+        try{ items.push({ file: await e.getFile(), path: dir.name + '/' + e.name }); }catch(_){}
+      } else if (e.kind === 'directory'){
+        await walk(e);
+      }
+    }
+  }
+  await walk(dirHandle);
+  buildLibrary(items);
+}
+
+async function pickDirFSA(){
+  try{
+    const h = await showDirectoryPicker();
+    try{ await idbSet('dir', h); }catch(_){}
+    await scanHandle(h);
+  }catch(e){ /* kullanıcı vazgeçti */ }
+}
+
+async function tryResume(){
+  try{
+    const h = await idbGet('dir');
+    if (!h) return;
+    document.getElementById('resumeBtn').hidden = false;
+    document.getElementById('resumeBtn').onclick = async ()=>{
+      try{
+        let perm = await h.queryPermission({mode:'read'});
+        if (perm !== 'granted') perm = await h.requestPermission({mode:'read'});
+        if (perm === 'granted') await scanHandle(h);
+        else document.getElementById('setupErr').textContent = 'İzin verilmedi — klasörü yeniden seç.';
+      }catch(e){
+        document.getElementById('setupErr').textContent = 'Kayıtlı klasöre ulaşılamadı (taşınmış olabilir) — yeniden seç.';
+      }
+    };
+  }catch(_){}
+}
+tryResume();
+
+document.getElementById('pickBtn').onclick = () => hasFSA ? pickDirFSA() : picker.click();
+document.getElementById('pickFilesBtn').onclick = () => pickerFiles.click();
+document.getElementById('pickZipBtn').onclick = () => pickerZip.click();
+picker.onchange = () => buildLibrary([...picker.files].map(f=>({file:f, path:f.webkitRelativePath||f.name})));
+pickerFiles.onchange = () => buildLibrary([...pickerFiles.files].map(f=>({file:f, path:f.name})));
+pickerZip.onchange = () => { if (pickerZip.files[0]) loadZip(pickerZip.files[0]); };
+
+// --- ZIP açma (harici kütüphane yok; store + deflate destekli) ---
+async function loadZip(file){
+  const prog = document.getElementById('zipProgress');
+  prog.textContent = 'ZIP okunuyor…';
+  try{
+    const buf = new Uint8Array(await file.arrayBuffer());
+    const dv = new DataView(buf.buffer);
+    // End of Central Directory'yi sondan ara
+    let eocd = -1;
+    for (let i = buf.length - 22; i >= 0 && i > buf.length - 22 - 65536; i--){
+      if (dv.getUint32(i, true) === 0x06054b50){ eocd = i; break; }
+    }
+    if (eocd < 0) throw new Error('Geçersiz ZIP');
+    let cdCount = dv.getUint16(eocd + 10, true);
+    let cdOff = dv.getUint32(eocd + 16, true);
+    const entries = [];
+    let p = cdOff;
+    for (let n = 0; n < cdCount; n++){
+      if (dv.getUint32(p, true) !== 0x02014b50) break;
+      const method = dv.getUint16(p + 10, true);
+      const compSize = dv.getUint32(p + 20, true);
+      const nameLen = dv.getUint16(p + 28, true);
+      const extraLen = dv.getUint16(p + 30, true);
+      const commLen = dv.getUint16(p + 32, true);
+      const lho = dv.getUint32(p + 42, true);
+      const name = new TextDecoder().decode(buf.subarray(p + 46, p + 46 + nameLen));
+      entries.push({ name, method, compSize, lho });
+      p += 46 + nameLen + extraLen + commLen;
+    }
+    const items = [];
+    let done = 0;
+    for (const e of entries){
+      if (!/\.(mp3|m4a|ogg|wav)$/i.test(e.name)) { done++; continue; }
+      // yerel başlıktan gerçek veri ofsetini bul
+      const lhNameLen = dv.getUint16(e.lho + 26, true);
+      const lhExtraLen = dv.getUint16(e.lho + 28, true);
+      const dataStart = e.lho + 30 + lhNameLen + lhExtraLen;
+      const comp = buf.subarray(dataStart, dataStart + e.compSize);
+      let raw;
+      if (e.method === 0){ raw = comp; }
+      else if (e.method === 8){
+        const ds = new DecompressionStream('deflate-raw');
+        raw = new Uint8Array(await new Response(new Blob([comp]).stream().pipeThrough(ds)).arrayBuffer());
+      } else { done++; continue; }
+      const base = e.name.split('/').pop();
+      items.push({ file: new File([raw], base, {type:'audio/mpeg'}), path: e.name });
+      done++;
+      if (done % 20 === 0){ prog.textContent = 'Açılıyor… ' + done + '/' + entries.length; await new Promise(r=>setTimeout(r,0)); }
+    }
+    prog.textContent = '';
+    buildLibrary(items);
+  }catch(err){
+    prog.textContent = '';
+    document.getElementById('setupErr').textContent = 'ZIP açılamadı: ' + err.message;
+  }
+}
+
+function buildLibrary(items){
+  library = {};
+  let total = 0;
+  for (const {file:f, path:rawPath} of items) {
+    if (!/\.(mp3|m4a|ogg|wav)$/i.test(f.name)) continue;
+    const path = rawPath.toLowerCase();
+    const slot = SLOTS.find(s => path.includes(s[2]));
+    if (!slot) continue;
+    const meta = parseTrack(f.name);
+    (library[slot[2]] = library[slot[2]] || []).push({
+      name: meta.title, artist: meta.artist, pxid: meta.pxid, vokal: meta.vokal,
+      file: f.name, url: URL.createObjectURL(f)
+    });
+    total++;
+  }
+  if (!total) {
+    document.getElementById('setupErr').textContent =
+      'Bu klasörde uygun mp3 bulunamadı. Klasör/dosya adlarında 1-kahvalti … 6-hifi ön ekleri olmalı.';
+    return;
+  }
+  document.getElementById('setup').hidden = true;
+  document.getElementById('player').hidden = false;
+  renderMoods(); renderSchedule();
+}
+
+// ---------- YARDIMCILAR ----------
+const nowMin = () => { const d = new Date(); return d.getHours()*60 + d.getMinutes(); };
+const slotIdxFor = m => SLOTS.findIndex(s => m >= s[0] && m < s[1]);
+const effectiveIdx = () => mood === 'auto' ? slotIdxFor(nowMin()) : mood;
+const shuffle = a => { for (let i=a.length-1; i>0; i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; };
+const fmt = m => String(Math.floor(m/60)).padStart(2,'0') + ':' + String(m%60).padStart(2,'0');
+const fmtSec = s => isFinite(s) ? Math.floor(s/60)+':'+String(Math.floor(s%60)).padStart(2,'0') : '0:00';
+
+function tracksFor(idx){
+  const pref = SLOTS[idx][2];
+  if (library[pref] && library[pref].length) return library[pref];
+  return Object.values(library).flat();
+}
+
+// ---------- ÇALMA ----------
+let gen = 0;          // geçiş nesli: eski çağrıların geriden gelen callback'lerini geçersiz kılar
+let fadeIv = null;    // aktif crossfade döngüsü (aynı anda tek fade)
+let lastStart = 0;    // son parça başlatma zamanı (ticker'ın erken müdahalesini önler)
+let failCount = 0;
+
+function playNext(force){
+  const idx = effectiveIdx();
+  if (idx === -1) { stopAll(); updateUI(); return; }
+
+  if (idx !== currentSlotIdx || force === 'reshuffle') {
+    currentSlotIdx = idx;
+    queue = shuffle([...tracksFor(idx).keys()]);
+    queuePos = 0;
+  }
+  const tracks = tracksFor(idx);
+  if (queuePos >= queue.length) { queue = shuffle(queue); queuePos = 0; }
+  const track = tracks[queue[queuePos++] % tracks.length];
+
+  const myGen = ++gen;
+  lastStart = Date.now();
+  const cur = audios[active];
+  const next = audios[1-active];
+  active = 1-active; // rolü senkron değiştir — çift çağrıda çakışma olmasın
+
+  // eski handler'ları temizle
+  next.ontimeupdate = null; next.onended = null;
+  next.pause();
+  next.src = track.url;
+  next.volume = 0;
+  next.play().then(()=>{
+    if (myGen !== gen) return; // bu geçiş geçersiz kılınmış
+    failCount = 0;
+    startFade(cur, next, SLOTS[idx][5]);
+    currentTrack = track;
+    document.getElementById('trackTitle').textContent = track.name;
+    document.getElementById('trackSub').textContent =
+      (track.artist ? track.artist + ' · ' : '') + SLOTS[idx][3] + ' listesi' + (track.vokal ? ' · vokal' : '');
+    renderLicense();
+    next.onended = () => { if (myGen === gen) playNext(); };
+    next.__fading = false;
+    next.ontimeupdate = () => {
+      if (myGen !== gen) return;
+      if (!seeking) updateSeek(next);
+      if (next.duration && next.duration - next.currentTime < FADE_SEC && !next.__fading) {
+        next.__fading = true; playNext();
+      }
+    };
+  }).catch(()=>{
+    if (myGen !== gen) return;
+    failCount++;
+    if (failCount < 10) playNext();
+    else { document.getElementById('trackSub').textContent = 'Çalma hatası — Başlat ile tekrar dene'; started = false; document.getElementById('startBtn').textContent = '▶ Başlat'; }
+  });
+}
+
+function startFade(from, to, slotVol){
+  if (fadeIv) clearInterval(fadeIv); // önceki fade'i iptal et — yeni parçayı susturmasın
+  const target = slotVol * masterVol;
+  const steps = 20, dt = FADE_SEC*1000/steps;
+  let i = 0;
+  fadeIv = setInterval(()=>{
+    i++;
+    to.volume = Math.min(target, target * i/steps);
+    if (from !== to && from.src) from.volume = Math.max(0, (from.volume||0) * (1 - i/steps));
+    if (i >= steps){
+      clearInterval(fadeIv); fadeIv = null;
+      if (from !== to){ from.ontimeupdate = null; from.onended = null; from.pause(); from.removeAttribute('src'); }
+    }
+  }, dt);
+}
+
+function stopAll(){
+  gen++; // bekleyen tüm geçişleri geçersiz kıl
+  if (fadeIv){ clearInterval(fadeIv); fadeIv = null; }
+  audios.forEach(a=>{ a.ontimeupdate = null; a.onended = null; a.pause(); a.removeAttribute('src'); });
+  currentTrack = null;
+  document.getElementById('trackTitle').textContent = 'Duraklatıldı';
+  document.getElementById('trackSub').textContent = mood==='auto' ? 'Çalışma saatleri dışında' : 'Durduruldu';
+  document.getElementById('nowBox').classList.remove('playing');
+  updateSeek(null);
+}
+
+// ---------- İLERLETME (SEEK) ----------
+const seekEl = document.getElementById('seek');
+function updateSeek(a){
+  if (!a || !a.duration) {
+    seekEl.value = 0;
+    document.getElementById('tCur').textContent = '0:00';
+    document.getElementById('tDur').textContent = '0:00';
+    return;
+  }
+  seekEl.value = Math.round(a.currentTime / a.duration * 1000);
+  document.getElementById('tCur').textContent = fmtSec(a.currentTime);
+  document.getElementById('tDur').textContent = fmtSec(a.duration);
+}
+seekEl.addEventListener('input', ()=>{ seeking = true;
+  const a = audios[active];
+  if (a && a.duration) document.getElementById('tCur').textContent = fmtSec(seekEl.value/1000*a.duration);
+});
+seekEl.addEventListener('change', ()=>{
+  const a = audios[active];
+  if (a && a.duration) {
+    const t = seekEl.value/1000*a.duration;
+    // son saniyelere atlama crossfade'i hemen tetiklemesin diye sınırla
+    a.currentTime = Math.min(t, Math.max(0, a.duration - (FADE_SEC+1)));
+  }
+  seeking = false;
+});
+
+// ---------- LİSANS PANELİ ----------
+document.getElementById('licBtn').onclick = ()=> document.getElementById('licPanel').classList.toggle('open');
+function renderLicense(){
+  const p = document.getElementById('licPanel');
+  if (!currentTrack){ p.innerHTML = 'Lisans bilgisi için bir parça çalıyor olmalı.'; return; }
+  const t = currentTrack;
+  if (t.pxid){
+    p.innerHTML =
+      '<b>' + t.name + '</b><br>' +
+      'Sanatçı: <b>' + (t.artist||'—') + '</b><br>' +
+      'Kaynak: Pixabay Music (ID: px' + t.pxid + ')<br>' +
+      'Lisans: <a href="https://pixabay.com/service/license-summary/" target="_blank">Pixabay Content License</a> — ticari kullanım ve mekân yayını serbest, atıf gerekmez.<br>' +
+      'Dosya: ' + t.file;
+  } else {
+    p.innerHTML =
+      '<b>' + t.name + '</b><br>' +
+      (t.artist ? 'Sanatçı: <b>' + t.artist + '</b><br>' : '') +
+      'Lisans kaydı: lisans-kayitlari/LISANS-KAYDI.md dosyasına bakın.<br>' +
+      'Dosya: ' + t.file;
+  }
+}
+
+// ---------- MOOD SEÇİCİ ----------
+function renderMoods(){
+  const el = document.getElementById('moods');
+  const items = [['auto','⏰ Otomatik']].concat(SLOTS.map((s,i)=>[i, s[3]]));
+  el.innerHTML = items.map(([v,l])=>'<button class="mood'+(String(mood)===String(v)?' active':'')+'" data-mood="'+v+'">'+l+'</button>').join('');
+  el.querySelectorAll('.mood').forEach(b=>{
+    b.onclick = ()=>{
+      const v = b.dataset.mood;
+      mood = v==='auto' ? 'auto' : parseInt(v,10);
+      renderMoods();
+      document.getElementById('hintText').textContent = mood==='auto'
+        ? "Sekmeyi kapatma; bilgisayarın uyku moduna geçmesini kapat. Otomatik modda 23:00'te durur."
+        : "Manuel mod: saat planı devre dışı, '"+SLOTS[mood][3]+"' listesi çalıyor. Plana dönmek için ⏰ Otomatik'e bas.";
+      if (started) playNext('reshuffle');
+      updateUI();
+    };
+  });
+}
+
+// ---------- SAAT DÖNGÜSÜ ----------
+setInterval(()=>{
+  const d = new Date();
+  document.getElementById('clock').textContent =
+    String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+  if (!started) return;
+  const idx = effectiveIdx();
+  const anyPlaying = audios.some(a=>!a.paused && a.src);
+  const settling = Date.now() - lastStart < (FADE_SEC+2)*1000; // geçiş otururken müdahale etme
+  if (idx === -1 && anyPlaying) stopAll();
+  else if (idx !== -1 && !anyPlaying && !settling) playNext();
+  else if (idx !== -1 && idx !== currentSlotIdx && !settling) playNext();
+  updateUI();
+}, 1000);
+
+function updateUI(){
+  const idx = effectiveIdx();
+  const manual = mood !== 'auto';
+  document.getElementById('slotName').textContent =
+    idx === -1 ? 'Kapalı saatler' :
+    SLOTS[idx][3] + (manual ? ' · manuel' : ' · ' + fmt(SLOTS[idx][0]) + '–' + fmt(SLOTS[idx][1]));
+  document.getElementById('slotSub').textContent = idx === -1 ? "Yayın 08:00'de başlar" : SLOTS[idx][4];
+  document.getElementById('nowBox').classList.toggle('playing', audios.some(a=>!a.paused && a.src));
+  document.querySelectorAll('#schedule .row').forEach((r,i)=>r.classList.toggle('active', i===idx));
+}
+
+function renderSchedule(){
+  document.getElementById('schedule').innerHTML = SLOTS.map(s=>{
+    const n = (library[s[2]]||[]).length;
+    return `<div class="row"><span>${fmt(s[0])}–${fmt(s[1])} · ${s[3]}</span><span class="tag">${n} parça</span></div>`;
+  }).join('');
+}
+
+// ---------- KONTROLLER ----------
+document.getElementById('startBtn').onclick = function(){
+  started = !started;
+  this.textContent = started ? '⏸ Durdur' : '▶ Başlat';
+  if (started) playNext('reshuffle'); else stopAll();
+};
+document.getElementById('skipBtn').onclick = () => { if (started) playNext(); };
+document.getElementById('vol').oninput = function(){
+  masterVol = this.value/100;
+  document.getElementById('volLabel').textContent = this.value+'%';
+  const idx = currentSlotIdx;
+  if (idx !== -1) audios[active].volume = SLOTS[idx][5] * masterVol;
+};
+
+if ('wakeLock' in navigator) {
+  document.addEventListener('click', async ()=>{ try{ await navigator.wakeLock.request('screen'); }catch(e){} }, {once:true});
+}
+</script>
+</body>
+</html>
