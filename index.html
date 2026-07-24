@@ -108,10 +108,15 @@
       <div class="controls">
         <button class="primary" id="toggleBtn">⏸ Durdur</button>
         <button id="skipBtn">⏭ Sonraki</button>
-        <button class="small" id="licBtn" title="Çalan parçanın lisansı">📄</button>
+      </div>
+      <div class="controls">
+        <button id="dislikeBtn" title="Bu parçayı beğenmedim: listeye ekle, geç, bir daha çalma">👎 Beğenmedim</button>
+        <button class="small" id="licBtn" title="Çalan parçanın lisansı">Lisans</button>
+        <button class="small" id="disListBtn" title="Beğenilmeyenler listesi">Liste</button>
       </div>
 
       <div class="license" id="licPanel"></div>
+      <div class="license" id="disPanel"></div>
 
       <div class="vol">🔊 <input type="range" id="vol" min="0" max="100" value="80"> <span id="volLabel">80%</span></div>
 
@@ -196,8 +201,28 @@ const fmt = m => String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padSt
 const fmtSec = s => isFinite(s) ? Math.floor(s/60)+':'+String(Math.floor(s%60)).padStart(2,'0') : '0:00';
 function tracksFor(idx){
   const pref = SLOTS[idx][2];
-  if (library[pref] && library[pref].length) return library[pref];
-  return Object.values(library).flat();
+  const pool = (library[pref] && library[pref].length) ? library[pref] : Object.values(library).flat();
+  const kept = pool.filter(t => !dislikes.has(t.file));
+  return kept.length ? kept : pool; // hepsi beğenilmediyse yine de çal (sessizlik olmasın)
+}
+
+// ---------- BEĞENİLMEYENLER (cihazda saklanır) ----------
+function loadDislikes(){ try{ return new Set(JSON.parse(localStorage.getItem('avokado_dislikes')||'[]')); }catch(e){ return new Set(); } }
+function saveDislikes(){ try{ localStorage.setItem('avokado_dislikes', JSON.stringify([...dislikes])); }catch(e){} }
+let dislikes = loadDislikes();
+function renderDisCount(){
+  document.getElementById('disListBtn').textContent = 'Liste (' + dislikes.size + ')';
+}
+function renderDisPanel(){
+  const arr = [...dislikes];
+  const p = document.getElementById('disPanel');
+  if (!arr.length){ p.innerHTML = 'Beğenilmeyen parça yok. Bir parça çalarken 👎 Beğenmedim\'e basınca buraya eklenir.'; return; }
+  p.innerHTML = '<b>Beğenilmeyen ' + arr.length + ' parça:</b><br>' + arr.map(f=>'• '+f).join('<br>') +
+    '<br><br><button class="small" id="copyDis">Kopyala</button> <button class="small" id="clearDis">Listeyi temizle</button>';
+  document.getElementById('copyDis').onclick = function(){
+    (navigator.clipboard ? navigator.clipboard.writeText(arr.join('\n')) : Promise.reject()).then(()=>{ this.textContent='Kopyalandı ✓'; }).catch(()=>{ this.textContent='Kopyalanamadı'; });
+  };
+  document.getElementById('clearDis').onclick = ()=>{ if (confirm('Beğenilmeyenler listesi silinsin mi? (parçalar tekrar çalmaya başlar)')){ dislikes.clear(); saveDislikes(); renderDisCount(); renderDisPanel(); } };
 }
 
 // ---------- ÇALMA ----------
@@ -288,10 +313,11 @@ function renderLicense(){
   const p = document.getElementById('licPanel');
   if (!currentTrack){ p.innerHTML='Bir parça çalıyor olmalı.'; return; }
   const t = currentTrack;
+  const kayit = '<br><a href="lisans-kayitlari/LISANS-KAYDI.md" target="_blank">📄 Tam lisans kaydını aç</a>';
   if (t.pxid){
-    p.innerHTML = '<b>'+t.name+'</b><br>Sanatçı: <b>'+(t.artist||'—')+'</b><br>Kaynak: Pixabay Music (px'+t.pxid+')<br>Lisans: <a href="https://pixabay.com/service/license-summary/" target="_blank">Pixabay Content License</a> — ticari kullanım ve mekân yayını serbest, atıf gerekmez.<br>Dosya: '+t.file;
+    p.innerHTML = '<b>'+t.name+'</b><br>Sanatçı: <b>'+(t.artist||'—')+'</b><br>Kaynak: Pixabay Music (px'+t.pxid+')<br>Lisans: <a href="https://pixabay.com/service/license-summary/" target="_blank">Pixabay Content License</a> — ticari kullanım ve mekân yayını serbest, atıf gerekmez.<br>Dosya: '+t.file+kayit;
   } else {
-    p.innerHTML = '<b>'+t.name+'</b><br>'+(t.artist?'Sanatçı: <b>'+t.artist+'</b><br>':'')+'Lisans kaydı: lisans-kayitlari/LISANS-KAYDI.md<br>Dosya: '+t.file;
+    p.innerHTML = '<b>'+t.name+'</b><br>'+(t.artist?'Sanatçı: <b>'+t.artist+'</b><br>':'')+'Dosya: '+t.file+kayit;
   }
 }
 
@@ -356,6 +382,21 @@ document.getElementById('toggleBtn').onclick = function(){
   if (started) playNext('reshuffle'); else stopAll();
 };
 document.getElementById('skipBtn').onclick = ()=>{ if (started) playNext(); };
+document.getElementById('dislikeBtn').onclick = function(){
+  if (!currentTrack) return;
+  dislikes.add(currentTrack.file);
+  saveDislikes();
+  renderDisCount();
+  if (document.getElementById('disPanel').classList.contains('open')) renderDisPanel();
+  this.textContent = '👎 Eklendi';
+  setTimeout(()=>{ this.textContent = '👎 Beğenmedim'; }, 1200);
+  if (started) playNext();
+};
+document.getElementById('disListBtn').onclick = ()=>{
+  const p = document.getElementById('disPanel');
+  p.classList.toggle('open');
+  if (p.classList.contains('open')) renderDisPanel();
+};
 document.getElementById('vol').oninput = function(){
   masterVol = this.value/100;
   document.getElementById('volLabel').textContent = this.value+'%';
@@ -369,7 +410,7 @@ startBtn.onclick = ()=>{
   document.getElementById('player').hidden = false;
   started = true;
   document.getElementById('toggleBtn').textContent = '⏸ Durdur';
-  renderMoods(); renderSchedule();
+  renderMoods(); renderSchedule(); renderDisCount();
   playNext('reshuffle');
   if ('wakeLock' in navigator){ navigator.wakeLock.request('screen').catch(()=>{}); }
 };
