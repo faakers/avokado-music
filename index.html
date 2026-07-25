@@ -226,6 +226,20 @@ function tracksFor(idx){
   return kept.length ? kept : pool; // hepsi beğenilmediyse yine de çal (sessizlik olmasın)
 }
 
+function setMediaMeta(track, idx){
+  if ('mediaSession' in navigator){
+    try {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: track.name || track.file,
+        artist: track.artist || 'Avokado Bar',
+        album: SLOTS[idx][3] + ' · Avokado Bar'
+      });
+      navigator.mediaSession.playbackState = 'playing';
+      navigator.mediaSession.setActionHandler('nexttrack', ()=>{ if (started) playNext(); });
+    } catch(e){}
+  }
+}
+
 // ---------- BEĞENİLMEYENLER (cihazda saklanır) ----------
 function loadDislikes(){ try{ return new Set(JSON.parse(localStorage.getItem('avokado_dislikes')||'[]')); }catch(e){ return new Set(); } }
 function saveDislikes(){ try{ localStorage.setItem('avokado_dislikes', JSON.stringify([...dislikes])); }catch(e){} }
@@ -261,6 +275,21 @@ function playNext(force){
 
   const myGen = ++gen;
   lastStart = Date.now();
+
+  // ARKA PLAN / EKRAN KAPALI: aynı ses kanalında, crossfade yok (Android izin versin)
+  if (document.hidden) {
+    const a = audios[active];
+    if (fadeIv){ clearInterval(fadeIv); fadeIv = null; }
+    a.ontimeupdate = null; a.onended = null;
+    a.src = track.url;
+    a.volume = SLOTS[idx][5] * masterVol;
+    a.play().catch(()=>{});
+    currentTrack = track;
+    setMediaMeta(track, idx);
+    a.onended = () => { if (myGen === gen) playNext(); };
+    return;
+  }
+
   const cur = audios[active];
   const next = audios[1-active];
   active = 1-active;
@@ -277,17 +306,7 @@ function playNext(force){
     document.getElementById('trackSub').textContent =
       (track.artist ? track.artist + ' · ' : '') + SLOTS[idx][3] + ' listesi' + (track.vokal ? ' · vokal' : '');
     renderLicense();
-    if ('mediaSession' in navigator){
-      try {
-        navigator.mediaSession.metadata = new MediaMetadata({
-          title: track.name || track.file,
-          artist: track.artist || 'Avokado Bar',
-          album: SLOTS[idx][3] + ' · Avokado Bar'
-        });
-        navigator.mediaSession.playbackState = 'playing';
-        navigator.mediaSession.setActionHandler('nexttrack', ()=>{ if (started) playNext(); });
-      } catch(e){}
-    }
+    setMediaMeta(track, idx);
     next.onended = () => { if (myGen === gen) playNext(); };
     next.__fading = false;
     next.ontimeupdate = () => {
