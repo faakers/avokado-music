@@ -139,6 +139,22 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(()=>{});
 }
 
+// ---------- EKRANI AÇIK TUT + UYKUDAN DÖNÜNCE DEVAM ET ----------
+let wakeLock = null;
+async function acquireWakeLock(){
+  try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch(e){}
+}
+document.addEventListener('visibilitychange', ()=>{
+  if (document.visibilityState === 'visible'){
+    acquireWakeLock();
+    // ekran/uyku sonrası çalma durduysa kaldığı dilimden devam et
+    if (started){
+      const anyPlaying = audios.some(a=>!a.paused && a.src);
+      if (effectiveIdx() !== -1 && !anyPlaying) playNext();
+    }
+  }
+});
+
 // ---------- ZAMAN PLANI ----------
 // [başlangıç dk, bitiş dk, klasör anahtarı, ad, açıklama, hedef ses (0-1)]
 const SLOTS = [
@@ -261,6 +277,17 @@ function playNext(force){
     document.getElementById('trackSub').textContent =
       (track.artist ? track.artist + ' · ' : '') + SLOTS[idx][3] + ' listesi' + (track.vokal ? ' · vokal' : '');
     renderLicense();
+    if ('mediaSession' in navigator){
+      try {
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: track.name || track.file,
+          artist: track.artist || 'Avokado Bar',
+          album: SLOTS[idx][3] + ' · Avokado Bar'
+        });
+        navigator.mediaSession.playbackState = 'playing';
+        navigator.mediaSession.setActionHandler('nexttrack', ()=>{ if (started) playNext(); });
+      } catch(e){}
+    }
     next.onended = () => { if (myGen === gen) playNext(); };
     next.__fading = false;
     next.ontimeupdate = () => {
@@ -416,7 +443,7 @@ startBtn.onclick = ()=>{
   document.getElementById('toggleBtn').textContent = '⏸ Durdur';
   renderMoods(); renderSchedule(); renderDisCount();
   playNext('reshuffle');
-  if ('wakeLock' in navigator){ navigator.wakeLock.request('screen').catch(()=>{}); }
+  acquireWakeLock();
 };
 
 // ---------- AÇILIŞTA MANIFEST YÜKLE ----------
