@@ -110,6 +110,7 @@
       </div>
 
       <div class="controls">
+        <button id="prevBtn">⏮ Önceki</button>
         <button class="primary" id="toggleBtn">⏸ Durdur</button>
         <button id="skipBtn">⏭ Sonraki</button>
       </div>
@@ -240,6 +241,7 @@ function setMediaMeta(track, idx){
       });
       navigator.mediaSession.playbackState = 'playing';
       navigator.mediaSession.setActionHandler('nexttrack', ()=>{ if (started) playNext(); });
+      navigator.mediaSession.setActionHandler('previoustrack', ()=>{ if (started) playPrev(); });
     } catch(e){}
   }
 }
@@ -264,19 +266,10 @@ function renderDisPanel(){
 }
 
 // ---------- ÇALMA ----------
-function playNext(force){
-  const idx = effectiveIdx();
-  if (idx === -1){ stopAll(); updateUI(); return; }
-  if (idx !== currentSlotIdx || force === 'reshuffle'){
-    currentSlotIdx = idx;
-    queue = shuffle([...tracksFor(idx).keys()]);
-    queuePos = 0;
-  }
-  const tracks = tracksFor(idx);
-  if (!tracks.length){ updateUI(); return; }
-  if (queuePos >= queue.length){ queue = shuffle(queue); queuePos = 0; }
-  const track = tracks[queue[queuePos++] % tracks.length];
+let history = [];   // çalınan parçalar (geçmiş) — "Önceki" için
 
+// bir parça nesnesini çal (crossfade veya ekran kapalıysa geçişsiz)
+function playTrack(track, idx){
   const myGen = ++gen;
   lastStart = Date.now();
 
@@ -326,6 +319,32 @@ function playNext(force){
     if (failCount < 12) setTimeout(()=>{ if (myGen===gen) playNext(); }, 800);
     else { document.getElementById('trackSub').textContent='Bağlantı hatası — internet/adres kontrol'; }
   });
+}
+
+function playNext(force){
+  const idx = effectiveIdx();
+  if (idx === -1){ stopAll(); updateUI(); return; }
+  if (idx !== currentSlotIdx || force === 'reshuffle'){
+    currentSlotIdx = idx;
+    queue = shuffle([...tracksFor(idx).keys()]);
+    queuePos = 0;
+  }
+  const tracks = tracksFor(idx);
+  if (!tracks.length){ updateUI(); return; }
+  if (queuePos >= queue.length){ queue = shuffle(queue); queuePos = 0; }
+  const track = tracks[queue[queuePos++] % tracks.length];
+  history.push(track);
+  if (history.length > 60) history.shift();
+  playTrack(track, idx);
+}
+
+function playPrev(){
+  if (!started || history.length < 2) return;
+  history.pop();                          // şu an çalanı çıkar
+  const track = history[history.length-1]; // bir öncekini çal
+  let idx = effectiveIdx();
+  if (idx === -1) idx = currentSlotIdx >= 0 ? currentSlotIdx : 0;
+  playTrack(track, idx);
 }
 function startFade(from, to, slotVol){
   if (fadeIv) clearInterval(fadeIv);
@@ -436,6 +455,7 @@ document.getElementById('toggleBtn').onclick = function(){
   if (started) playNext('reshuffle'); else stopAll();
 };
 document.getElementById('skipBtn').onclick = ()=>{ if (started) playNext(); };
+document.getElementById('prevBtn').onclick = ()=>{ if (started) playPrev(); };
 document.getElementById('dislikeBtn').onclick = function(){
   if (!currentTrack) return;
   dislikes.add(currentTrack.file);
