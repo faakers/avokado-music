@@ -158,7 +158,7 @@ document.addEventListener('visibilitychange', ()=>{
 // ---------- ZAMAN PLANI ----------
 // [başlangıç dk, bitiş dk, klasör anahtarı, ad, açıklama, hedef ses (0-1)]
 const SLOTS = [
-  [8*60,      12*60,     '1-kahvalti', 'Kahvaltı', 'Akustik & soft — 60-90 BPM',        0.70],
+  [7*60+30,   12*60,     '1-kahvalti', 'Kahvaltı', 'Akustik & soft — 60-90 BPM',        0.70],
   [12*60,     14*60+30,  '2-ogle',     'Öğle',     'Enerjik & upbeat — 100-120 BPM',    0.85],
   [14*60+30,  17*60,     '3-ikindi',   'İkindi',   'Bossa & chill — 70-95 BPM',         0.70],
   [17*60,     20*60,     '4-aksam',    'Akşam',    'Nu-jazz & groove — 90-110 BPM',     0.75],
@@ -178,6 +178,10 @@ let active = 0, masterVol = 0.8, seeking = false;
 let gen = 0, fadeIv = null, lastStart = 0, failCount = 0;
 let lastManifestFetch = 0;
 const audios = [document.getElementById('a0'), document.getElementById('a1')];
+// parça yüklenemez/bozuksa takılma, sonrakine geç
+audios.forEach(a => a.addEventListener('error', () => {
+  if (started && failCount < 12){ failCount++; setTimeout(()=>{ if (started) playNext(); }, 600); }
+}));
 
 // ---------- DOSYA ADI AYRIŞTIRMA ----------
 function parseTrack(path){
@@ -412,7 +416,7 @@ function updateUI(){
   document.getElementById('slotName').textContent =
     idx === -1 ? 'Kapalı saatler' :
     SLOTS[idx][3] + (manual ? ' · manuel' : ' · '+fmt(SLOTS[idx][0])+'–'+fmt(SLOTS[idx][1]));
-  document.getElementById('slotSub').textContent = idx === -1 ? "Yayın 08:00'de başlar" : SLOTS[idx][4];
+  document.getElementById('slotSub').textContent = idx === -1 ? "Yayın 07:30'da başlar" : SLOTS[idx][4];
   document.getElementById('nowBox').classList.toggle('playing', audios.some(a=>!a.paused && a.src));
   document.querySelectorAll('#schedule .row').forEach((r,i)=>r.classList.toggle('active', i===idx));
 }
