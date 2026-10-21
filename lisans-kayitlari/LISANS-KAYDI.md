@@ -86,3 +86,6 @@ Yukarıda listelenen 55 Incompetech/Kevin MacLeod parçası arşivden çıkarıl
 
 ## Taze Parçalar (çeşitlilik güncellemesi)
 51 yeni Pixabay parçası eklendi — farklı tarzlar: morning coffee jazz, gentle folk, motown soul, feel-good indie, latin groove, chillhop, jazzy hip-hop, cool jazz, rnb soul, ambient piano, deep chillout, jazz funk, boogie funk, afrobeat. Aynı lisans (Pixabay Content License). **Güncel toplam: 336 parça.**
+
+## Kontrol sonrası çıkarılanlar
+Yeni parçalar kontrol sayfasında "çıkar" işaretlenen 9 parça arşivden silindi (px508019, px390942, px152808, px594244, px369556, px474341, px573337, px569717, px222618).
