@@ -257,8 +257,13 @@ function renderDisPanel(){
   const arr = [...dislikes];
   const p = document.getElementById('disPanel');
   if (!arr.length){ p.innerHTML = 'Beğenilmeyen parça yok. Bir parça çalarken 👎 Beğenmedim\'e basınca buraya eklenir.'; return; }
-  p.innerHTML = '<b>Beğenilmeyen ' + arr.length + ' parça:</b><br>' + arr.map(f=>'• '+f).join('<br>') +
-    '<br><br><button class="small" id="copyDis">Kopyala</button> <button class="small" id="clearDis">Listeyi temizle</button>';
+  const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  p.innerHTML = '<b>Beğenilmeyen ' + arr.length + ' parça:</b>' +
+    arr.map((f,i)=>'<div style="display:flex;align-items:center;gap:8px;margin-top:6px;"><span style="flex:1;">• '+esc(f)+'</span><button class="small undoDis" data-i="'+i+'" style="padding:6px 10px;font-size:11.5px;">↩ Geri al</button></div>').join('') +
+    '<br><button class="small" id="copyDis">Kopyala</button> <button class="small" id="clearDis">Hepsini geri al</button>';
+  p.querySelectorAll('.undoDis').forEach(b=>{
+    b.onclick = ()=>{ dislikes.delete(arr[+b.dataset.i]); saveDislikes(); renderDisCount(); renderDisPanel(); };
+  });
   document.getElementById('copyDis').onclick = function(){
     (navigator.clipboard ? navigator.clipboard.writeText(arr.join('\n')) : Promise.reject()).then(()=>{ this.textContent='Kopyalandı ✓'; }).catch(()=>{ this.textContent='Kopyalanamadı'; });
   };

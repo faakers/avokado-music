@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Avokado Bar · Yeni Parçalar Kontrol</title>
+<meta name="theme-color" content="#243420">
+<style>
+  :root{ --bg:#1a2417; --panel:#243420; --panel2:#2d4027; --green:#8fbc5a; --green-dk:#5a8a3a; --cream:#f2efe6; --muted:#9db08d; --red:#b5654a; }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:var(--cream); min-height:100vh; display:flex; justify-content:center; padding:24px;}
+  .app{width:100%; max-width:560px;}
+  .card{background:var(--panel); border-radius:20px; padding:24px; box-shadow:0 10px 40px rgba(0,0,0,.4);}
+  h1{font-size:20px; display:flex; align-items:center; gap:10px;}
+  .sub{color:var(--muted); font-size:13px; margin-top:4px;}
+  .stats{display:flex; gap:8px; margin-top:14px; font-size:12.5px;}
+  .stat{flex:1; background:var(--panel2); border-radius:10px; padding:8px; text-align:center;}
+  .stat b{display:block; font-size:18px;}
+  .chips{display:flex; flex-wrap:wrap; gap:6px; margin-top:14px;}
+  .chip{border:1px solid var(--panel2); background:transparent; color:var(--muted); border-radius:999px; padding:6px 11px; font-size:12px; cursor:pointer;}
+  .chip.active{background:var(--green-dk); color:var(--cream); border-color:var(--green-dk);}
+  .now{margin-top:16px; background:var(--panel2); border-radius:14px; padding:16px;}
+  .title{font-size:16px; font-weight:600;}
+  .meta{font-size:12.5px; color:var(--muted); margin-top:3px;}
+  .badge{display:inline-block; font-size:11px; padding:2px 8px; border-radius:999px; margin-left:6px;}
+  .b-keep{background:var(--green-dk);} .b-rem{background:var(--red);}
+  .seek{display:flex; align-items:center; gap:10px; margin-top:12px; font-size:11.5px; color:var(--muted); font-variant-numeric:tabular-nums;}
+  .seek input{flex:1; accent-color:var(--green);}
+  .row{display:flex; gap:8px; margin-top:12px;}
+  button{flex:1; border:0; border-radius:12px; padding:13px; font-size:14.5px; font-weight:600; cursor:pointer; background:var(--panel2); color:var(--cream);}
+  button:hover{filter:brightness(1.15);}
+  .keep{background:var(--green-dk);} .rem{background:var(--red);}
+  .ghost{background:transparent; border:1px solid var(--panel2); color:var(--muted); font-size:12.5px; padding:10px;}
+  .list{margin-top:16px; max-height:380px; overflow:auto; font-size:13px;}
+  .item{display:flex; align-items:center; gap:8px; padding:8px 6px; border-radius:8px; cursor:pointer;}
+  .item:hover{background:var(--panel2);}
+  .item.cur{background:var(--panel2); color:var(--green);}
+  .item .n{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .item .s{color:var(--muted); font-size:11px;}
+  .dot{width:9px; height:9px; border-radius:50%; background:#4a5a44; flex:none;}
+  .dot.keep{background:var(--green);} .dot.rem{background:var(--red);}
+  .note{margin-top:14px; font-size:11.5px; color:var(--muted); line-height:1.6;}
+  .msg{margin-top:8px; font-size:12.5px; color:var(--green); min-height:16px; text-align:center;}
+</style>
+</head>
+<body>
+<div class="app"><div class="card">
+  <h1>🥑 Yeni Parçalar · Kontrol</h1>
+  <div class="sub">Sadece son eklenen parçalar. Dinle, karar ver: Kalsın / Çıkar.</div>
+
+  <div class="stats">
+    <div class="stat"><b id="sTotal">0</b>toplam</div>
+    <div class="stat"><b id="sLeft">0</b>bekleyen</div>
+    <div class="stat"><b id="sKeep" style="color:var(--green)">0</b>kalsın</div>
+    <div class="stat"><b id="sRem" style="color:#e08a6a">0</b>çıkar</div>
+  </div>
+
+  <div class="chips" id="chips"></div>
+
+  <div class="now">
+    <div class="title" id="tTitle">Yükleniyor…</div>
+    <div class="meta" id="tMeta"></div>
+    <div class="seek"><span id="tCur">0:00</span><input type="range" id="seek" min="0" max="1000" value="0"><span id="tDur">0:00</span></div>
+    <div class="row">
+      <button id="prev">⏮</button>
+      <button id="play">▶ Çal</button>
+      <button id="next">⏭</button>
+    </div>
+    <div class="row">
+      <button class="keep" id="keep">👍 Kalsın</button>
+      <button class="rem" id="rem">👎 Çıkar</button>
+    </div>
+    <div class="msg" id="msg"></div>
+  </div>
+
+  <div class="row">
+    <button class="ghost" id="onlyLeft">Sadece bekleyenler: Kapalı</button>
+    <button class="ghost" id="copy">Çıkarılacakları kopyala</button>
+  </div>
+
+  <div class="list" id="list"></div>
+
+  <div class="note">
+    Kararlar bu cihazda saklanır. "Çıkar" dediğin parça bu cihazdaki ana player'da da çalmaz (👎 listesine eklenir).
+    Bitirince <b>Çıkarılacakları kopyala</b>'ya bas, listeyi bana gönder — arşivden kalıcı olarak silerim.
+  </div>
+</div></div>
+
+<audio id="au" preload="auto"></audio>
+
+<script>
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+
+const SLOTS = {'1-kahvalti':'Kahvaltı','2-ogle':'Öğle','3-ikindi':'İkindi','4-aksam':'Akşam','5-kapanis':'Geçiş','6-hifi':'HiFi'};
+const au = document.getElementById('au');
+let all = [], view = [], pos = -1, filter = 'all', onlyLeft = false, seeking = false;
+
+// kararlar: {dosyaadı: 'keep'|'rem'}
+const load = (k, d) => { try { return JSON.parse(localStorage.getItem(k) || d); } catch(e){ return JSON.parse(d); } };
+let review = load('avokado_review', '{}');
+let dislikes = new Set(load('avokado_dislikes', '[]'));
+const save = () => {
+  try {
+    localStorage.setItem('avokado_review', JSON.stringify(review));
+    localStorage.setItem('avokado_dislikes', JSON.stringify([...dislikes]));
+  } catch(e){}
+};
+
+function parse(path){
+  const file = decodeURIComponent(path.split('/').pop());
+  const base = file.replace(/\.(mp3|m4a|ogg|wav)$/i,'');
+  const br = [...base.matchAll(/\[([^\]]+)\]/g)].map(m=>m[1]).filter(b=>!/^px\d+$/.test(b) && b.toLowerCase()!=='vokal');
+  return {
+    path, file, url: encodeURI(path), slot: path.split('/')[1],
+    title: base.replace(/^\d-\w+ - /,'').replace(/\[[^\]]*\]/g,'').replace(/\s+/g,' ').trim(),
+    artist: br.length ? br[br.length-1] : '', vokal: /\[vokal\]/i.test(base)
+  };
+}
+const fmt = s => isFinite(s) ? Math.floor(s/60)+':'+String(Math.floor(s%60)).padStart(2,'0') : '0:00';
+const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+function rebuild(keepCurrent){
+  const cur = view[pos];
+  view = all.filter(t => (filter==='all' || t.slot===filter) && (!onlyLeft || !review[t.file]));
+  pos = keepCurrent && cur ? view.indexOf(cur) : -1;
+  renderList(); renderStats();
+}
+function renderStats(){
+  const k = all.filter(t=>review[t.file]==='keep').length;
+  const r = all.filter(t=>review[t.file]==='rem').length;
+  document.getElementById('sTotal').textContent = all.length;
+  document.getElementById('sKeep').textContent = k;
+  document.getElementById('sRem').textContent = r;
+  document.getElementById('sLeft').textContent = all.length - k - r;
+}
+function renderChips(){
+  const counts = {}; all.forEach(t => counts[t.slot] = (counts[t.slot]||0)+1);
+  const items = [['all','Tümü ('+all.length+')']].concat(Object.keys(SLOTS).filter(s=>counts[s]).map(s=>[s, SLOTS[s]+' ('+counts[s]+')']));
+  const el = document.getElementById('chips');
+  el.innerHTML = items.map(([v,l])=>'<button class="chip'+(filter===v?' active':'')+'" data-v="'+v+'">'+l+'</button>').join('');
+  el.querySelectorAll('.chip').forEach(b => b.onclick = ()=>{ filter = b.dataset.v; renderChips(); rebuild(false); });
+}
+function renderList(){
+  const el = document.getElementById('list');
+  if (!view.length){ el.innerHTML = '<div class="note">Bu filtrede parça yok.</div>'; return; }
+  el.innerHTML = view.map((t,i)=>{
+    const st = review[t.file];
+    return '<div class="item'+(i===pos?' cur':'')+'" data-i="'+i+'"><span class="dot '+(st||'')+'"></span><span class="n">'+esc(t.title)+'</span><span class="s">'+SLOTS[t.slot]+'</span></div>';
+  }).join('');
+  el.querySelectorAll('.item').forEach(d => d.onclick = ()=> playAt(+d.dataset.i));
+}
+function renderNow(){
+  const t = view[pos];
+  if (!t){ document.getElementById('tTitle').textContent = 'Listeden bir parça seç ya da ▶ Çal'; document.getElementById('tMeta').innerHTML=''; return; }
+  const st = review[t.file];
+  document.getElementById('tTitle').innerHTML = esc(t.title) + (st==='keep'?'<span class="badge b-keep">kalsın</span>':st==='rem'?'<span class="badge b-rem">çıkar</span>':'');
+  document.getElementById('tMeta').textContent = (t.artist?t.artist+' · ':'') + SLOTS[t.slot] + (t.vokal?' · vokal':'') + '  ·  ' + (pos+1) + '/' + view.length;
+}
+
+function playAt(i){
+  if (i < 0 || i >= view.length) return;
+  pos = i;
+  au.src = view[pos].url;
+  au.play().catch(()=>{});
+  document.getElementById('play').textContent = '⏸ Durdur';
+  renderNow(); renderList();
+  const cur = document.querySelector('.item.cur'); if (cur) cur.scrollIntoView({block:'nearest'});
+}
+function decide(val){
+  const t = view[pos]; if (!t) return;
+  review[t.file] = val;
+  if (val === 'rem') dislikes.add(t.file); else dislikes.delete(t.file);
+  save();
+  const m = document.getElementById('msg');
+  m.textContent = (val==='keep' ? '👍 Kalsın: ' : '👎 Çıkarılacak: ') + t.title;
+  renderStats();
+  if (onlyLeft){
+    const nextIdx = pos;          // filtre değişince aynı sıradaki parça "sonraki" olur
+    rebuild(false);
+    if (view.length) playAt(Math.min(nextIdx, view.length-1)); else { au.pause(); renderNow(); }
+  } else {
+    renderList(); renderNow();
+    if (pos < view.length-1) playAt(pos+1);
+  }
+}
+
+document.getElementById('play').onclick = ()=>{
+  if (pos < 0) return playAt(0);
+  if (au.paused){ au.play().catch(()=>{}); document.getElementById('play').textContent='⏸ Durdur'; }
+  else { au.pause(); document.getElementById('play').textContent='▶ Çal'; }
+};
+document.getElementById('next').onclick = ()=> playAt(pos+1);
+document.getElementById('prev').onclick = ()=> playAt(Math.max(0,pos-1));
+document.getElementById('keep').onclick = ()=> decide('keep');
+document.getElementById('rem').onclick = ()=> decide('rem');
+document.getElementById('onlyLeft').onclick = function(){
+  onlyLeft = !onlyLeft; this.textContent = 'Sadece bekleyenler: ' + (onlyLeft?'Açık':'Kapalı'); rebuild(true);
+};
+document.getElementById('copy').onclick = function(){
+  const rem = all.filter(t=>review[t.file]==='rem').map(t=>t.file);
+  if (!rem.length){ document.getElementById('msg').textContent = 'Henüz "çıkar" dediğin parça yok.'; return; }
+  const txt = rem.join('\n');
+  (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject())
+    .then(()=>{ document.getElementById('msg').textContent = rem.length + ' parça kopyalandı ✓'; })
+    .catch(()=>{ prompt('Kopyala:', txt); });
+};
+
+au.onended = ()=> { if (pos < view.length-1) playAt(pos+1); else document.getElementById('play').textContent='▶ Çal'; };
+au.ontimeupdate = ()=>{
+  if (seeking || !au.duration) return;
+  document.getElementById('seek').value = Math.round(au.currentTime/au.duration*1000);
+  document.getElementById('tCur').textContent = fmt(au.currentTime);
+  document.getElementById('tDur').textContent = fmt(au.duration);
+};
+const sk = document.getElementById('seek');
+sk.oninput = ()=>{ seeking = true; if (au.duration) document.getElementById('tCur').textContent = fmt(sk.value/1000*au.duration); };
+sk.onchange = ()=>{ if (au.duration) au.currentTime = sk.value/1000*au.duration; seeking = false; };
+
+(async ()=>{
+  try{
+    const r = await fetch('yeni.json?t='+Date.now(), {cache:'no-store'});
+    all = (await r.json()).map(parse);
+    renderChips(); rebuild(false); renderNow();
+  }catch(e){
+    document.getElementById('tTitle').textContent = 'Liste yüklenemedi — internet bağlantısını kontrol et.';
+  }
+})();
+</script>
+</body>
+</html>
