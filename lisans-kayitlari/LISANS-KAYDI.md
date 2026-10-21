@@ -83,3 +83,6 @@ Yukarıda listelenen 55 Incompetech/Kevin MacLeod parçası arşivden çıkarıl
 16 yeni vokalli parça (soul, neo-soul, funk, motown — disko/pop hariç), Pixabay, aynı lisans. 10 parça arşivde zaten olduğu için atlandı.
 
 **Güncel toplam: 285 parça**
+
+## Taze Parçalar (çeşitlilik güncellemesi)
+51 yeni Pixabay parçası eklendi — farklı tarzlar: morning coffee jazz, gentle folk, motown soul, feel-good indie, latin groove, chillhop, jazzy hip-hop, cool jazz, rnb soul, ambient piano, deep chillout, jazz funk, boogie funk, afrobeat. Aynı lisans (Pixabay Content License). **Güncel toplam: 336 parça.**
